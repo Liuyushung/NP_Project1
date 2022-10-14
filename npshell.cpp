@@ -61,11 +61,25 @@ void debug_vector(int type, vector<string> &cmds) {
 }
 
 void debug_number_pipes() {
-    for (size_t i = 0; i < number_pipes.size(); i++) {
-        cout << "Index: " << i 
-             << "\tNumber: " << number_pipes[i].number
-             << "\tIn: " << number_pipes[i].in
-             << "\tOut: " << number_pipes[i].out << endl;
+    if (number_pipes.size() > 0) {    
+        cout << "Number Pipes" << endl;
+        for (size_t i = 0; i < number_pipes.size(); i++) {
+            cout << "\tIndex: " << i 
+                << "\tNumber: " << number_pipes[i].number
+                << "\tIn: " << number_pipes[i].in
+                << "\tOut: " << number_pipes[i].out << endl;
+        }
+    }
+}
+
+void debug_pipes() {
+    if (pipes.size() > 0) {
+        cout << "Pipes" << endl;
+        for (size_t i = 0; i < pipes.size(); i++) {
+            cout << "\tIndex: " << i 
+                << "\tIn: " << pipes[i].in
+                << "\tOut: " << pipes[i].out << endl;
+        }
     }
 }
 
@@ -100,7 +114,7 @@ void decrement_and_cleanup_number_pipes() {
 
     vector<int> index;
     for (size_t i = 0; i < number_pipes.size(); i++) {
-        if( --number_pipes[i].number < 0 ) index.push_back(i);
+        if( --number_pipes[i].number < -1 ) index.push_back(i);
     }
     for (int i = index.size()-1; i >= 0; --i) {
         number_pipes.erase(number_pipes.begin() + index[i]);
@@ -292,6 +306,9 @@ void main_handler(Command &command) {
     if (command.cmds.size() == 1) {
         if (handle_builtin(command.cmds[0]))    return;
     }
+    #if 0
+    cout << "Handle " << command.cmd << endl;
+    #endif
 
     vector<string> args;
     string error_pipe_symbol = "!", pipe_symbol = "|";
@@ -340,15 +357,15 @@ void main_handler(Command &command) {
                             out: pipefd[1],
                             number: command.number});
                     }
+                    #if 0
+                    debug_number_pipes();
+                    #endif
                 }
             }
             if (!ignore_arg) {
                 args.push_back(arg);
             }
         }
-        #if 0
-        debug_number_pipes();
-        #endif
 
         /* Create Normal Pipe */
         if (!is_error_pipe && !is_number_pipe) {
@@ -356,6 +373,9 @@ void main_handler(Command &command) {
                 // Create Pipe
                 pipe(pipefd);
                 pipes.push_back(Pipe{in: pipefd[0], out: pipefd[1]});
+                #if 0
+                debug_pipes();
+                #endif
             }
         }
 
@@ -381,9 +401,11 @@ void main_handler(Command &command) {
             }
 
             // Number Pipe
-            // cout << "Parent Close number pipe" << endl;
             for (int x=0; x < number_pipes.size(); ++x) {
                 if (number_pipes[x].number == 0) {
+                    #if 0
+                    cout << "Parent Close number pipe: " << x << endl;
+                    #endif
                     close(number_pipes[x].in);
                     close(number_pipes[x].out);
                 }
@@ -410,6 +432,10 @@ void main_handler(Command &command) {
             cout << "\tNumber? " << (is_number_pipe ? "True" : "False") << endl;
             cout << "\tError? " << (is_error_pipe ? "True" : "False") << endl;
             #endif
+            #if 0
+            cout << "Child Execute: " << args[0] << endl;
+            usleep(5000);
+            #endif
 
             // Duplicate pipe
             if (is_first_cmd) {
@@ -434,17 +460,27 @@ void main_handler(Command &command) {
             }
 
             if (!is_first_cmd && !is_final_cmd) {
-                dup2(pipes[i-1].in, STDIN_FILENO);
-                dup2(pipes[i].out, STDOUT_FILENO);
+                // cout << "Error" << endl;
+                if (pipes.size() > 0) {
+                    dup2(pipes[i-1].in, STDIN_FILENO);
+                    dup2(pipes[i].out, STDOUT_FILENO);
+                }
+                #if 0
+                cout << "Internal (in) " << pipes[i-1].in << " to " << STDIN_FILENO << endl;
+                cout << "Internal (out) " << pipes[i].out << " to " << STDOUT_FILENO << endl;
+                #endif
             }
             if (is_final_cmd) {
                 if (is_number_pipe) {
                     // cout << "Last Command Number Pipe" << endl;
                     for (size_t x = 0; x < number_pipes.size(); x++) {
                         if (number_pipes[x].number == command.number) {
+                            // cout << "Should Exec" << endl;
                             dup2(number_pipes[x].out, STDOUT_FILENO);
+                            close(number_pipes[x].out);
+                            // cout << "Should Exec2" << endl;
                             #if 0
-                            cout << "Final Number Pipe (out)" << number_pipes[x].out << " to " << STDOUT_FILENO << endl;
+                            cout << "Final Number Pipe (out) " << number_pipes[x].out << " to " << STDOUT_FILENO << endl;
                             #endif
                             break;
                         }
@@ -460,6 +496,9 @@ void main_handler(Command &command) {
                 } else {
                     if (pipes.size() > 0) {
                         dup2(pipes[i-1].in, STDIN_FILENO);
+                        #if 0
+                        cout << "Final Pipe (out) " << pipes[i-1].in << " to " << STDIN_FILENO << endl;
+                        #endif
                     }
                 }
             }
@@ -500,7 +539,7 @@ int main() {
     signal(SIGCHLD, child_handler);
 
     while (1) {
-        cout << "% ";
+        cout << "% "; fflush(stdout);
         getline(cin, input);
 
         if (cin.eof()) {
