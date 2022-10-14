@@ -7,6 +7,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <regex>
 
 using namespace std;
 
@@ -25,8 +26,16 @@ struct my_number_pipe {
     int number;
 };
 
+struct my_command {
+    string cmd;           // Cut by number|error pipe
+    vector<string> cmds;  // Split by pipe
+    bool is_number_pipe;
+    bool is_error_pipe;
+};
+
 typedef struct mypipe Pipe;
 typedef struct my_number_pipe NumberPipe;
+typedef struct my_command Command;
 
 /* Global Variables */
 vector<Pipe> pipes;
@@ -121,6 +130,9 @@ void handle_builtin(string cmd) {
 }
 
 vector<string> parse_pipe(string input) {
+    /*
+     * "a -n | b | c -x |2" -> ["a -n", "b", c -x |2"]
+     */
     vector<string> cmds;
     string pipe_symbol("| ");
     int pos;
@@ -145,6 +157,53 @@ vector<string> parse_pipe(string input) {
     }
 
     return cmds;
+}
+
+vector<Command> parse_number_pipe(string input) {
+    /*
+     *    "removetag test.html |2 ls | number |1"
+     * -> ["removetag test.html |2", "ls | number |1"]
+     */
+    vector<Command> lines;
+    regex pattern("[|!][1-9]\\d?[0]?");
+    smatch result;
+
+    while(regex_search(input, result, pattern)) {
+        Command command;
+
+        command.cmd = input.substr(0, result.position() + result.length());
+        input.erase(0, result.position() + result.length());
+
+        if (command.cmd.find("|") != string::npos) {
+            command.is_error_pipe  = false;
+            command.is_number_pipe = true;
+        } else {
+            command.is_error_pipe  = true;
+            command.is_number_pipe = false;
+        }
+
+        lines.push_back(command);
+    }
+
+    if (lines.size() == 0) {
+        // Normal Pipe
+        Command command{cmd: input, is_number_pipe: false, is_error_pipe: false};
+
+        lines.push_back(command);
+    }
+
+    // Split by pipe
+    for (size_t i = 0; i < lines.size(); i++) {
+        lines[i].cmds = parse_pipe(lines[i].cmd); 
+    }
+
+    // Debug
+    // for (size_t i = 0; i < lines.size(); i++) {
+    //     cout << "Line " << i << ": " << lines[i].cmd << endl;
+    // }
+    
+    
+    return lines;
 }
 
 vector<string> parse_args(string cmd) {
@@ -183,21 +242,21 @@ void execute_command(vector<string> args) {
     }
 }
 
-void handle_pipe(vector<string> cmds) {
+void handle_pipe(Command command) {
     vector<string> args;
     string error_pipe_symbol = "!", pipe_symbol = "|";
     string arg;
     bool is_error_pipe = false, is_number_pipe = false;
 
-    for (size_t i = 0; i < cmds.size(); i++) {
-        istringstream iss(cmds[i]);
+    for (size_t i = 0; i < command.cmds.size(); i++) {
+        istringstream iss(command.cmds[i]);
         vector<string> args;
         pid_t pid;
         int pipefd[2];
         bool is_first_cmd = false, is_final_cmd = false;
 
         if (i == 0)                 is_first_cmd = true;
-        if (i == cmds.size() - 1)   is_final_cmd = true;
+        if (i == command.cmds.size() - 1)   is_final_cmd = true;
 
         /* Parse Command Start */
         while (getline(iss, arg, ' ')) {
@@ -218,7 +277,7 @@ void handle_pipe(vector<string> cmds) {
 
         /* Create Normal Pipe */
         if (!is_error_pipe && !is_number_pipe) {
-            if(!is_final_cmd && cmds.size() > 1) {
+            if(!is_final_cmd && command.cmds.size() > 1) {
                 // Create Pipe
                 pipe(pipefd);
                 pipes.push_back(Pipe{in: pipefd[0], out: pipefd[1]});
@@ -281,18 +340,19 @@ void handle_pipe(vector<string> cmds) {
     pipes.clear();
 }
 
-void handle_command(string input) {
-#ifdef DEBUG
-        cout << "handle_command: " << input << endl;
-#endif
-    vector<string> cmds;
+void parse_command(string input) {
+    // cout << "parse_command: " << input << endl;
+
+    vector<Command> lines;
 
     handle_builtin(input);
-    cmds = parse_pipe(input);
-    // debug_vector(DEBUG_CMD, cmds);
 
-    handle_pipe(cmds);
+    lines = parse_number_pipe(input);
 
+    for (size_t i = 0; i < lines.size(); i++) {
+        handle_pipe(lines[i]);
+    }
+    
 }
 
 int main() {
@@ -317,7 +377,7 @@ int main() {
             continue;
         }
 
-        handle_command(input);
+        parse_command(input);
     }
 
     return 0;
