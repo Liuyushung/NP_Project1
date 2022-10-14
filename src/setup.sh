@@ -1,3 +1,5 @@
+cp /bin/ls ../bin
+cp /bin/cat ../bin
 g++ noop.cpp -o ../bin/noop
 g++ number.cpp -o ../bin/number
 g++ removetag.cpp -o ../bin/removetag

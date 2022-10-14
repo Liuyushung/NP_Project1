@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -61,9 +60,6 @@ void child_handler(int sig) {
 
     while(waitpid(-1, &stat, WNOHANG) > 0) {
         // Remove zombie process
-    #if 0
-        cout << "Child Handler: " << stat << endl;
-    #endif
     }
 
     return;
@@ -112,17 +108,12 @@ void handle_builtin(string cmd) {
 
         getline(iss, var, ' ');
         getline(iss, value, ' ');
-#ifdef DEBUG
-        cout << "handle_builtin: " << "var: " << var << endl;
-        cout << "handle_builtin: " << "value: " << value << endl;
-#endif
+
         my_setenv(var, value);
     } else if (prog == "printenv") {
         string var;
         getline(iss, var, ' ');
-#ifdef DEBUG
-        cout << "handle_builtin: " << "var: " << var << endl;
-#endif
+
         my_printenv(var);
     } else if (prog == "exit") {
         exit(0);
@@ -177,10 +168,6 @@ void execute_command(vector<string> args) {
     const char *prog = args[0].c_str();
     const char **c_args = new const char* [args.size()+1];  // Reserve one location for NULL
 
-    #if 1
-        cerr << "Execute: " << prog << endl;
-    #endif
-
     for (size_t i = 0; i < args.size(); i++) {
         c_args[i] = args[i].c_str();
     }
@@ -199,24 +186,20 @@ void handle_pipe(vector<string> cmds) {
     string error_pipe_symbol = "!", pipe_symbol = "|";
     string arg;
     bool is_error_pipe = false, is_number_pipe = false;
-    bool is_first_cmd = false, is_final_cmd = false;
 
     for (size_t i = 0; i < cmds.size(); i++) {
         istringstream iss(cmds[i]);
         vector<string> args;
         pid_t pid;
         int pipefd[2];
+        bool is_first_cmd = false, is_final_cmd = false;
 
-        if (i == 0) {
-            is_first_cmd = true;
-        }
-        if (i == cmds.size() - 1) {
-            // Final Command
-            is_final_cmd = true;
-        }
+        if (i == 0)                 is_first_cmd = true;
+        if (i == cmds.size() - 1)   is_final_cmd = true;
 
         /* Parse Command Start */
         while (getline(iss, arg, ' ')) {
+            if (is_white_char(arg)) continue;
 
             if (arg.find(error_pipe_symbol) != string::npos) {
                 // Handle error pipe
@@ -277,34 +260,21 @@ void handle_pipe(vector<string> cmds) {
             if (pipes.size() > 0) {
                 if (is_first_cmd) {
                     dup2(pipes[i].out, STDOUT_FILENO);
-                    
-                    // close(pipes[i].in);
-                    // close(pipes[i].out);
                 }
                 if (!is_first_cmd && !is_final_cmd) {
                     dup2(pipes[i-1].in, STDIN_FILENO);
                     dup2(pipes[i].out, STDOUT_FILENO);
-
-                    // close(pipes[i-1].in);
-                    // close(pipes[i-1].out);
-                    // close(pipes[i].in);
-                    // close(pipes[i].out);
                 }
                 if (is_final_cmd) {
                     dup2(pipes[i-1].in, STDIN_FILENO);
-
-                    // close(pipes[i-1].in);
-                    // close(pipes[i-1].out);
                 }
 
                 // Close pipe
                 for (int ci = 0; ci < pipes.size(); ci++) {
-                    // cout << getpid() << ": " << ci << endl;
                     close(pipes[ci].in);
                     close(pipes[ci].out);
                 }
             }
-            // cout << "Child Execute" << endl;
             execute_command(args);
         }
     }
@@ -319,9 +289,10 @@ void handle_command(string input) {
 
     handle_builtin(input);
     cmds = parse_pipe(input);
+    // debug_vector(DEBUG_CMD, cmds);
+
     handle_pipe(cmds);
 
-    // debug_vector(DEBUG_CMD, cmds);
 }
 
 int main() {
@@ -346,10 +317,8 @@ int main() {
             continue;
         }
 
-
         handle_command(input);
     }
-    
 
     return 0;
 }
