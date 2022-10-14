@@ -168,6 +168,8 @@ void execute_command(vector<string> args) {
     const char *prog = args[0].c_str();
     const char **c_args = new const char* [args.size()+1];  // Reserve one location for NULL
 
+    // cout << "EXEC: " << prog << endl;
+
     for (size_t i = 0; i < args.size(); i++) {
         c_args[i] = args[i].c_str();
     }
@@ -176,7 +178,7 @@ void execute_command(vector<string> args) {
 
     if (execvp(prog, (char **)c_args) == -1) {
         // perror("Unkown command: ");
-        printf("Unkown command: [%s].\n", prog);
+        cerr << "Unkown command: [" << args[0] << "]." << endl;
         exit(1);
     }
 }
@@ -252,9 +254,7 @@ void handle_pipe(vector<string> cmds) {
         }
         else {
             /* Child Process */
-            #if 0
-                cout << "Child PID: " << getpid() << endl;
-            #endif
+            // cout << "Child PID: " << getpid() << endl;
 
             // Duplicate pipe
             if (pipes.size() > 0) {
