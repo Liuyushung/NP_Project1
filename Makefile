@@ -3,10 +3,10 @@ EXE = npshell
 OBJ = npshell.o
 
 %.o: %.c
-	$(CC) $< -o $@
+	$(CC)  $< -o $@
 
 all: $(OBJ)
-	$(CC) $(OBJ) -o $(EXE)
+	$(CC)  $(OBJ) -o $(EXE)
 
 clean:
 	rm $(OBJ) $(EXE)
