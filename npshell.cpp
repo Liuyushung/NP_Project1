@@ -237,8 +237,8 @@ vector<Command> parse_number_pipe(string input) {
         cout << "Line " << i << ": " << lines[i].cmd << endl;
         cout << "\tCommand: " << lines[i].cmd << endl;
         cout << "\tCommand Size: " << lines[i].cmds.size() << endl;
-        cout << "\tis_number_pipe: " << (lines[i].is_number_pipe ? "True" : "False") << endl;
-        cout << "\tis_error_pipe: " << (lines[i].is_error_pipe ? "True" : "False") << endl;
+        // cout << "\tis_number_pipe: " << (lines[i].is_number_pipe ? "True" : "False") << endl;
+        // cout << "\tis_error_pipe: " << (lines[i].is_error_pipe ? "True" : "False") << endl;
         cout << "\tNumber: " << lines[i].number << endl;
     }
     #endif
@@ -389,11 +389,16 @@ void main_handler(Command &command) {
                 }
             }
 
-            if (is_final_cmd) {
+            if (is_final_cmd && !(is_number_pipe || is_error_pipe)) {
                 // Final process, wait
-                // cout << "Parent Wait" << endl;
+                #if 0
+                cout << "Parent Wait Start" << endl;
+                #endif
                 int st;
                 waitpid(pid, &st, 0);
+                #if 0
+                cout << "Parent Wait End: " << st << endl;
+                #endif
             }
         } else {
             /* Child Process */
@@ -412,6 +417,9 @@ void main_handler(Command &command) {
                 for (size_t x = 0; x < number_pipes.size(); x++) {
                     if (number_pipes[x].number == 0) {
                         dup2(number_pipes[x].in, STDIN_FILENO);
+                        #if 0
+                        cout << "First Number Pipe (in) " << number_pipes[x].in << " to " << STDIN_FILENO << endl;
+                        #endif
                         break;
                     }
                 }
@@ -419,6 +427,9 @@ void main_handler(Command &command) {
                 if (pipes.size() > 0) {
                     // Normal pipe output
                     dup2(pipes[i].out, STDOUT_FILENO);
+                    #if 0
+                    cout << "First Normal Pipe (out) " << pipes[i].out << " to " << STDOUT_FILENO << endl;
+                    #endif
                 }
             }
 
@@ -432,7 +443,9 @@ void main_handler(Command &command) {
                     for (size_t x = 0; x < number_pipes.size(); x++) {
                         if (number_pipes[x].number == command.number) {
                             dup2(number_pipes[x].out, STDOUT_FILENO);
-                            // cout << number_pipes[x].out << " to " << STDOUT_FILENO << endl;
+                            #if 0
+                            cout << "Final Number Pipe (out)" << number_pipes[x].out << " to " << STDOUT_FILENO << endl;
+                            #endif
                             break;
                         }
                     }
