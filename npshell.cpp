@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -246,6 +247,8 @@ vector<Command> parse_number_pipe(string input) {
 }
 
 void execute_command(vector<string> args) {
+    int fd;
+    bool need_file_redirection = false;
     const char *prog = args[0].c_str();
     const char **c_args = new const char* [args.size()+1];  // Reserve one location for NULL
 
@@ -257,13 +260,27 @@ void execute_command(vector<string> args) {
     cout << endl;
     #endif
 
+    /* Parse Arguments */
     for (size_t i = 0; i < args.size(); i++) {
+        if (args[i] == ">") {
+            need_file_redirection = true;
+            fd = open(args[i+1].c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+            args.pop_back();  // Remove file name
+            args.pop_back();  // Remove redirect symbol
+            break;
+        }
         c_args[i] = args[i].c_str();
     }
     c_args[args.size()] = NULL;
 
+    // Check if need file redirection
+    if (need_file_redirection) {
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+
+    // Execute Command
     if (execvp(prog, (char **)c_args) == -1) {
-        // perror("Unkown command: ");
         cerr << "Unkown command: [" << args[0] << "]." << endl;
         exit(1);
     }
@@ -460,7 +477,6 @@ void parse_command(string input) {
     for (size_t i = 0; i < lines.size(); i++) {
         main_handler(lines[i]);
     }
-    
 }
 
 int main() {
