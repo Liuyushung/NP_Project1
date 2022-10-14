@@ -192,7 +192,7 @@ vector<Command> parse_number_pipe(string input) {
      * -> ["removetag test.html |2", "ls | number |1"]
      */
     vector<Command> lines;
-    regex pattern("[|!][1-9]\\d?[0]?");
+    regex pattern("[|!][1-9]\\d?\\d?[0]?");
     smatch result;
 
     while(regex_search(input, result, pattern)) {
@@ -281,7 +281,7 @@ void execute_command(vector<string> args) {
 
     // Execute Command
     if (execvp(prog, (char **)c_args) == -1) {
-        cerr << "Unkown command: [" << args[0] << "]." << endl;
+        cerr << "Unknown command: [" << args[0] << "]." << endl;
         exit(1);
     }
 }

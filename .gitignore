@@ -51,3 +51,4 @@ Thumbs.db
 *.o
 npshell
 .vscode
+bin/*
