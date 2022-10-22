@@ -195,21 +195,51 @@ vector<string> parse_pipe(string input) {
     return cmds;
 }
 
+int calc(string input) {
+    int arr[2], pos, res;
+    string n1, n2;
+
+    pos = input.find("+");
+    n1 = input.substr(0, pos);
+    n2 = input.substr(pos+1, input.length()-pos-1);
+    res = atoi(n1.c_str()) + atoi(n2.c_str());
+
+    // cout << "n1 = " << n1 << " n2 = " << n2 << " res = " << res << endl;
+
+    return res;
+}
+
 vector<Command> parse_number_pipe(string input) {
     /*
      *    "removetag test.html |2 ls | number |1"
      * -> ["removetag test.html |2", "ls | number |1"]
      */
     vector<Command> lines;
-    regex pattern("[|!][1-9]\\d?\\d?[0]?");
+    regex pattern("[|!][1-9]\\d?\\d?[0]?\\+?[1-9]?\\d?\\d?[0]?");
+    regex pattern2("[1-9]\\d?\\d?[0]?\\+?[1-9]?\\d?\\d?[0]?");
     smatch result;
 
     while(regex_search(input, result, pattern)) {
         Command command;
+        string tmp;
+        tmp = input.substr(0, result.position() + result.length());
 
-        command.cmd = input.substr(0, result.position() + result.length());
-        command.number = atoi(input.substr(result.position() + 1, result.length() - 1).c_str());
-        input.erase(0, result.position() + result.length());
+        if (tmp.find("+") == string::npos) {
+            command.cmd = input.substr(0, result.position() + result.length());
+            command.number = atoi(input.substr(result.position() + 1, result.length() - 1).c_str());
+            input.erase(0, result.position() + result.length());
+        } else {
+            int n;
+            n = calc(input.substr(result.position()+1, result.length()-1));
+            tmp = regex_replace(tmp, pattern2, to_string(n));
+            // cout << input << endl;
+            // cout << tmp << endl;
+            command.cmd = tmp;
+            command.number = n;
+
+            input.erase(0, result.position() + result.length());
+            // break;
+        }
 
         lines.push_back(command);
     }
@@ -519,6 +549,7 @@ void parse_command(string input) {
     lines = parse_number_pipe(input);
 
     for (size_t i = 0; i < lines.size(); i++) {
+        // cout << "CMD " << i << ": " << lines[i].cmd << "X" << endl;
         main_handler(lines[i]);
     }
 }
