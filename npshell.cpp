@@ -423,7 +423,7 @@ void main_executor(Command &command) {
                 }
             }
 
-            if (is_final_cmd) {
+            if (is_final_cmd && !(is_number_pipe || is_error_pipe)) {
                 // Final command, wait for it completed
                 #if 0
                 cout << "Parent Wait Start" << endl;
